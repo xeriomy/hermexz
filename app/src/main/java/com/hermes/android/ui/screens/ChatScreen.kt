@@ -4,6 +4,7 @@
 package com.hermes.android.ui.screens
 
 import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -103,13 +104,15 @@ fun ChatScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+            item {
             items(messages) { message ->
                 MessageBubble(message = message)
             }
 
             streamingMessage?.let { text ->
                 if (text.isNotBlank()) {
-                    item {
+                        item {
                         StreamingMessage(text = text)
                     }
                 }
