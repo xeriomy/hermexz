@@ -27,7 +27,9 @@ class SessionViewModel(
     application: Application,
     private val api: HermesApi
 ) : AndroidViewModel(application) {
-    private const val TAG = "SessionViewModel"
+    companion object {
+        private const val TAG = "SessionViewModel"
+    }
 
     private val sessionRepository: SessionRepository = SessionRepository(api)
 

@@ -10,7 +10,9 @@ import android.util.Log
  * Application class for Hermes Android client
  */
 class HermesApp : Application() {
-    private const val TAG = "HermesApp"
+    companion object {
+        private const val TAG = "HermesApp"
+    }
 
     override fun onCreate() {
         super.onCreate()

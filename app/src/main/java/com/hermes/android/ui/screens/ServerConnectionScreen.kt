@@ -18,7 +18,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.hermes.android.ui.viewmodel.ServerViewModel
+import com.hermes.android.viewmodel.ServerViewModel
 import com.hermes.android.viewmodel.ConnectionState
 import kotlinx.coroutines.launch
 

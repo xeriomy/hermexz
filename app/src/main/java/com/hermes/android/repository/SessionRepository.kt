@@ -16,7 +16,9 @@ import kotlinx.coroutines.withContext
  * Repository for managing session data
  */
 class SessionRepository(private val api: HermesApi) {
-    private const val TAG = "SessionRepository"
+    companion object {
+        private const val TAG = "SessionRepository"
+    }
 
     private val _sessionsState = MutableStateFlow<SessionState>(SessionState.Idle)
     val sessionsState: StateFlow<SessionState> = _sessionsState.asStateFlow()

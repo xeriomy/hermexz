@@ -30,7 +30,9 @@ class ChatViewModel(
     private val api: HermesApi,
     private val sseClient: SseClient
 ) : AndroidViewModel(application) {
-    private const val TAG = "ChatViewModel"
+    companion object {
+        private const val TAG = "ChatViewModel"
+    }
 
     private val chatRepository: ChatRepository = ChatRepository(api, sseClient)
 
@@ -263,7 +265,14 @@ class ChatViewModel(
                 _chatState.value = ChatState.ERROR
                 _errorState.value = event.data.error ?: "Stream error"
             }
-            else -> {
+            is StreamEvent.ToolCallEvent -> {}
+            is StreamEvent.ToolResultEvent -> {}
+            is StreamEvent.ApprovalEvent -> {}
+            is StreamEvent.InitialEvent -> {}
+            is StreamEvent.ServerTurnStartedEvent -> {}
+            is StreamEvent.UnknownEvent -> {}
+            is StreamEvent.ParseErrorEvent -> {
+                _errorState.value = event.error ?: "Parse error"
             }
         }
     }

@@ -15,11 +15,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import android.app.Application
 import com.hermes.android.network.ApiClient
 import com.hermes.android.network.HermesApi
 import com.hermes.android.network.SseClient
-import com.hermes.android.ui.viewmodel.ServerViewModel
 import com.hermes.android.viewmodel.ConnectionState
+import com.hermes.android.viewmodel.ServerViewModel
 import okhttp3.OkHttpClient
 
 /**
