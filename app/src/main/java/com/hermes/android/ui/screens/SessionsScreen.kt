@@ -148,12 +148,12 @@ fun SessionsScreen(
                         Text("No sessions found")
                     }
                 } else {
+                    @OptIn(ExperimentalFoundationApi::class)
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        @OptIn(ExperimentalFoundationApi::class)
                         items(filteredSessions) { session ->
                             SessionCard(
                                 session = session,
