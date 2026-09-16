@@ -16,8 +16,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.sse.Event
-import okhttp3.sse.Sse
+import okhttp3.sse.EventSource
+import okhttp3.sse.EventSourceListener
+import okhttp3.sse.EventSources
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -140,21 +141,41 @@ class SseClient(
 
                     Log.d(TAG, "Connecting to SSE: $url")
 
-                    val sse = Sse(okHttpClient, request)
-
-                    sse.events().collect { event ->
-                        try {
-                            lastEventId = event.id
-
-                            val sseEvent = parseSseEvent(event)
-                            sseEvent?.let { handler.emit(it) }
-
-                            reconnectCount = 0
-
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error parsing SSE event", e)
+                    val eventSource = EventSources.createFactory(okHttpClient).newEventSource(request, object : EventSourceListener() {
+                        override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String?) {
+                            try {
+                                lastEventId = id
+                                val sseEvent = SseEvent(
+                                    type = type ?: "",
+                                    data = data,
+                                    id = id
+                                )
+                                handler.emit(sseEvent)
+                                reconnectCount = 0
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error parsing SSE event", e)
+                            }
                         }
+
+                        override fun onFailure(eventSource: EventSource, t: Throwable?, responseCode: Int) {
+                            Log.e(TAG, "SSE connection error: ${t?.message}")
+                            eventSource.cancel()
+                        }
+
+                        override fun onOpen(eventSource: EventSource, response: okhttp3.Response) {
+                            Log.d(TAG, "SSE connection opened")
+                        }
+
+                        override fun onClosed(eventSource: EventSource) {
+                            Log.d(TAG, "SSE connection closed")
+                        }
+                    })
+
+                    // Keep the connection alive while active
+                    while (isActive && activeStreams.containsKey(streamId)) {
+                        kotlinx.coroutines.delay(1000)
                     }
+                    eventSource.cancel()
 
                 } catch (e: Exception) {
                     Log.e(TAG, "SSE connection error (attempt ${reconnectCount + 1}): ${e.message}")
@@ -175,19 +196,6 @@ class SseClient(
             }
 
             Log.d(TAG, "SSE connection stopped for: $streamId")
-        }
-    }
-
-    private fun parseSseEvent(event: Event): SseEvent? {
-        return try {
-            SseEvent(
-                type = event.event ?: "",
-                data = event.data,
-                id = event.id
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing event", e)
-            null
         }
     }
 

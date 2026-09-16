@@ -3,6 +3,7 @@
 
 package com.hermes.android.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -152,6 +153,7 @@ fun SessionsScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        @OptIn(ExperimentalFoundationApi::class)
                         items(filteredSessions) { session ->
                             SessionCard(
                                 session = session,

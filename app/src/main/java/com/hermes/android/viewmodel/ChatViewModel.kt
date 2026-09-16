@@ -81,8 +81,8 @@ class ChatViewModel(
         viewModelScope.launch {
             chatRepository.chatStartState.collect { state ->
                 when (state) {
-                    is ChatStartState.Idle -> {}
-                    is ChatStartState.Loading -> {}
+                    ChatStartState.Idle -> {}
+                    ChatStartState.Loading -> {}
                     is ChatStartState.Success -> {
                         _chatStartState.value = state
                     }
