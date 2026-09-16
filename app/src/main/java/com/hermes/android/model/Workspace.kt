@@ -22,7 +22,7 @@ data class Workspace(
  */
 data class WorkspaceListResponse(
     @SerializedName("workspaces")
-    val workspaces: List<Workspace> = emptyList(),
+    val workspaces: List<Workspace>? = null,
     @SerializedName("last")
     val last: String? = null,
     @SerializedName("terminal_remote_backend")
@@ -42,7 +42,7 @@ data class WorkspaceSuggestionRequest(
  */
 data class WorkspaceSuggestionResponse(
     @SerializedName("suggestions")
-    val suggestions: List<String> = emptyList(),
+    val suggestions: List<String>? = null,
     @SerializedName("prefix")
     val prefix: String? = null
 )

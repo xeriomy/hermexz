@@ -67,7 +67,6 @@ fun ChatScreen(
 
     val viewModel: ChatViewModel = viewModel(
         factory = ChatViewModelFactory(
-            application = android.app.Application(),
             api = api!!,
             sseClient = sseClient!!
         )

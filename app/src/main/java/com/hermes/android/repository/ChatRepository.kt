@@ -219,7 +219,7 @@ class ChatRepository(
                 val session = response.body()
                 if (session != null) {
                     _currentSessionState.value = session
-                    _messagesState.value = session.messages
+                    _messagesState.value = session.messages ?: emptyList()
                     Result.success(session)
                 } else {
                     Result.failure(Exception("Session not found"))

@@ -13,7 +13,6 @@ import com.hermes.android.network.SseClient
  * Factory for creating ChatViewModel
  */
 class ChatViewModelFactory(
-    private val application: Application,
     private val api: HermesApi,
     private val sseClient: SseClient
 ) : ViewModelProvider.Factory {
@@ -21,7 +20,7 @@ class ChatViewModelFactory(
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
-            return ChatViewModel(application, api, sseClient) as T
+            return ChatViewModel(api, sseClient) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
