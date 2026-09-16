@@ -33,7 +33,7 @@ import com.hermes.android.network.SseClient
 import com.hermes.android.repository.ChatRepository
 import com.hermes.android.ui.components.MessageBubble
 import com.hermes.android.ui.components.StreamingMessage
-import com.hermes.android.viewmodel.ChatStartState
+import com.hermes.android.repository.ChatStartState
 import com.hermes.android.viewmodel.ChatViewModel
 import com.hermes.android.viewmodel.ChatViewModelFactory
 import okhttp3.OkHttpClient
