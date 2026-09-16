@@ -63,6 +63,10 @@ class ChatViewModel(
     val streamEvents: StateFlow<SseEvent?> = _streamEvents.asStateFlow()
 
     private var currentSessionId: String? = null
+    private var currentStreamId: String? = null
+    private var streamingMessageBuffer: StringBuilder = StringBuilder()
+    private var currentMessageId: String? = null
+    private var currentMessageSeq: Int = 0
 
     init {
         viewModelScope.launch {
@@ -97,6 +101,7 @@ class ChatViewModel(
             chatRepository.currentSessionState.collect { session ->
                 _currentSessionState.value = session
                 if (session != null) {
+                    Log.d(TAG, "currentSessionState updated: ${session.sessionId}, messages: ${session.messages?.size ?: 0}")
                     _messagesState.value = session.messages ?: emptyList()
                 }
             }
@@ -118,8 +123,13 @@ class ChatViewModel(
 
                 result.onSuccess { session ->
                     _currentSessionState.value = session
+                    Log.d(TAG, "Session loaded: ${session.sessionId}, messages count: ${session.messages?.size ?: 0}")
+                    if (session.messages != null) {
+                        Log.d(TAG, "Messages: ${session.messages?.joinToString { "[${it.role}, ${it.content.take(50)}]" }}")
+                    }
                     _messagesState.value = session.messages ?: emptyList()
                 }.onFailure { e ->
+                    Log.e(TAG, "Failed to load session: ${e.message}", e)
                     _errorState.value = e.message ?: "Failed to load session"
                 }
             } catch (e: Exception) {
@@ -147,14 +157,30 @@ class ChatViewModel(
             }
 
             try {
+                Log.d(TAG, "Sending message: $message, session: $sessionId")
                 val result = withContext(Dispatchers.IO) {
                     chatRepository.startChat(sessionId, message, profile, model)
                 }
 
                 result.onSuccess { response ->
+                    Log.d(TAG, "Chat started, streamId: ${response.streamId}")
+                    // Add user's message to the list immediately
+                    val userMessage = Message(
+                        role = "user",
+                        content = message,
+                        messageId = response.messageId,
+                        streamId = response.streamId,
+                        seq = response.seq
+                    )
+                    addMessage(userMessage)
+                    currentStreamId = response.streamId
+                    currentMessageId = response.messageId
+                    currentMessageSeq = response.seq
+                    streamingMessageBuffer.clear()
                     _chatState.value = ChatState.STREAMING
                     startStreaming()
                 }.onFailure { e ->
+                    Log.e(TAG, "Failed to send message: ${e.message}", e)
                     _errorState.value = e.message ?: "Failed to send message"
                     _chatState.value = ChatState.ERROR
                 }
@@ -199,6 +225,17 @@ class ChatViewModel(
                 }
 
                 result.onSuccess {
+                    if (streamingMessageBuffer.isNotEmpty()) {
+                        val assistantMessage = Message(
+                            role = "assistant",
+                            content = streamingMessageBuffer.toString(),
+                            messageId = currentMessageId,
+                            streamId = currentStreamId,
+                            seq = currentMessageSeq
+                        )
+                        addMessage(assistantMessage)
+                        streamingMessageBuffer.clear()
+                    }
                     _chatState.value = ChatState.IDLE
                     _streamingMessageState.value = null
                 }.onFailure { e ->
@@ -217,6 +254,10 @@ class ChatViewModel(
     fun clearCurrentSession() {
         chatRepository.clearCurrentSession()
         currentSessionId = null
+        currentStreamId = null
+        currentMessageId = null
+        currentMessageSeq = 0
+        streamingMessageBuffer.clear()
         _currentSessionState.value = null
         _messagesState.value = emptyList()
         _streamingMessageState.value = null
@@ -230,6 +271,7 @@ class ChatViewModel(
     fun setCurrentSession(session: FullSession) {
         currentSessionId = session.sessionId
         _currentSessionState.value = session
+        Log.d(TAG, "setCurrentSession: ${session.sessionId}, messages: ${session.messages?.size ?: 0}")
         _messagesState.value = session.messages ?: emptyList()
     }
 
@@ -246,37 +288,101 @@ class ChatViewModel(
      * Handle stream events
      */
     private fun handleStreamEvent(event: SseEvent) {
+        Log.d(TAG, "SSE event: type=${event.type}, id=${event.id}, data=${event.data?.take(200)}")
         when (event.type) {
             SseEventType.MESSAGE -> {
                 val messageEvent = Gson().fromJson(event.data, StreamMessageEvent::class.java)
                 val text = messageEvent?.text ?: ""
+                Log.d(TAG, "MESSAGE event: text='${text.take(50)}', done=${messageEvent?.done}, seq=${messageEvent?.seq}, message_id=${messageEvent?.messageId}")
+                
+                // Buffer streaming text
                 if (messageEvent?.done == true) {
+                    // Stream complete - add assistant message to list
+                    val finalText = if (text.isNotBlank()) text else streamingMessageBuffer.toString()
+                    if (finalText.isNotBlank()) {
+                        val assistantMessage = Message(
+                            role = "assistant",
+                            content = finalText,
+                            messageId = messageEvent.messageId ?: currentMessageId,
+                            streamId = currentStreamId,
+                            seq = messageEvent.seq ?: currentMessageSeq
+                        )
+                        addMessage(assistantMessage)
+                    }
+                    streamingMessageBuffer.clear()
                     _streamingMessageState.value = null
                     _chatState.value = ChatState.IDLE
                 } else {
-                    _streamingMessageState.value = text
+                    // Accumulate streaming text
+                    if (streamingMessageBuffer.isEmpty()) {
+                        streamingMessageBuffer.append(text)
+                    } else if (text.length > streamingMessageBuffer.length) {
+                        // Only append if text is growing (not resetting)
+                        streamingMessageBuffer.append(text.substring(streamingMessageBuffer.length))
+                    } else {
+                        // Text was reset, start fresh
+                        streamingMessageBuffer = StringBuilder(text)
+                    }
+                    _streamingMessageState.value = streamingMessageBuffer.toString()
                     _chatState.value = ChatState.STREAMING
                 }
             }
             SseEventType.DONE -> {
+                Log.d(TAG, "DONE event received")
+                // Finalize streaming - ensure message is added
+                if (streamingMessageBuffer.isNotEmpty()) {
+                    val assistantMessage = Message(
+                        role = "assistant",
+                        content = streamingMessageBuffer.toString(),
+                        messageId = currentMessageId,
+                        streamId = currentStreamId,
+                        seq = currentMessageSeq
+                    )
+                    addMessage(assistantMessage)
+                    streamingMessageBuffer.clear()
+                }
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
             SseEventType.STREAM_END -> {
+                Log.d(TAG, "STREAM_END event received")
+                // Finalize streaming - ensure message is added
+                if (streamingMessageBuffer.isNotEmpty()) {
+                    val assistantMessage = Message(
+                        role = "assistant",
+                        content = streamingMessageBuffer.toString(),
+                        messageId = currentMessageId,
+                        streamId = currentStreamId,
+                        seq = currentMessageSeq
+                    )
+                    addMessage(assistantMessage)
+                    streamingMessageBuffer.clear()
+                }
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
             SseEventType.ERROR -> {
                 val errorEvent = Gson().fromJson(event.data, ErrorEvent::class.java)
+                Log.e(TAG, "ERROR event: ${errorEvent?.error}")
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.ERROR
                 _errorState.value = errorEvent?.error ?: "Stream error"
             }
-            SseEventType.TOOL_CALL -> {}
-            SseEventType.TOOL_RESULT -> {}
-            SseEventType.APPROVAL -> {}
-            SseEventType.INITIAL -> {}
-            SseEventType.SERVER_TURN_STARTED -> {}
+            SseEventType.TOOL_CALL -> {
+                Log.d(TAG, "TOOL_CALL event: ${event.data?.take(100)}")
+            }
+            SseEventType.TOOL_RESULT -> {
+                Log.d(TAG, "TOOL_RESULT event: ${event.data?.take(100)}")
+            }
+            SseEventType.APPROVAL -> {
+                Log.d(TAG, "APPROVAL event: ${event.data?.take(100)}")
+            }
+            SseEventType.INITIAL -> {
+                Log.d(TAG, "INITIAL event: ${event.data?.take(100)}")
+            }
+            SseEventType.SERVER_TURN_STARTED -> {
+                Log.d(TAG, "SERVER_TURN_STARTED event")
+            }
             else -> {
                 Log.d(TAG, "Unhandled event type: ${event.type}")
             }

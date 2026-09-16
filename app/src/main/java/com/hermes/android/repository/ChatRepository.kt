@@ -74,20 +74,24 @@ class ChatRepository(
                 model = model
             )
 
+            Log.d(TAG, "Starting chat with request: sessionId=$sessionId, message length=${message.length}")
             val response = api.startChat(request)
 
             if (response.isSuccessful) {
                 val chatResponse = response.body()
                 if (chatResponse != null) {
+                    Log.d(TAG, "Chat started successfully: streamId=${chatResponse.streamId}, sessionId=${chatResponse.sessionId}")
                     currentStreamId = chatResponse.streamId
                     _chatStartState.value = ChatStartState.Success(chatResponse)
                     Result.success(chatResponse)
                 } else {
+                    Log.e(TAG, "Empty response from startChat")
                     _chatStartState.value = ChatStartState.Error("Empty response")
                     Result.failure(Exception("Empty response"))
                 }
             } else {
                 val error = response.errorBody()?.string() ?: "Unknown error"
+                Log.e(TAG, "startChat failed: $error")
                 _chatStartState.value = ChatStartState.Error(error)
                 Result.failure(Exception(error))
             }
@@ -210,6 +214,7 @@ class ChatRepository(
     suspend fun loadSession(sessionId: String): Result<FullSession> = withContext(Dispatchers.IO) {
         return@withContext try {
             currentSessionId = sessionId
+            Log.d(TAG, "Loading session: $sessionId")
             val response = api.getSession(
                 sessionId = sessionId,
                 messages = 1
@@ -218,14 +223,17 @@ class ChatRepository(
             if (response.isSuccessful) {
                 val session = response.body()
                 if (session != null) {
+                    Log.d(TAG, "Session loaded from API: ${session.sessionId}, messages: ${session.messages?.size ?: 0}")
                     _currentSessionState.value = session
                     _messagesState.value = session.messages ?: emptyList()
                     Result.success(session)
                 } else {
+                    Log.e(TAG, "Session not found in response")
                     Result.failure(Exception("Session not found"))
                 }
             } else {
                 val error = response.errorBody()?.string() ?: "Unknown error"
+                Log.e(TAG, "Failed to load session: $error")
                 Result.failure(Exception(error))
             }
 
