@@ -75,9 +75,9 @@ data class Session(
  */
 data class SessionListResponse(
     @SerializedName("sessions")
-    val sessions: List<Session> = emptyList(),
+    val sessions: List<Session>? = null,
     @SerializedName("projects")
-    val projects: List<Project> = emptyList(),
+    val projects: List<Project>? = null,
     @SerializedName("active_profile")
     val activeProfile: String? = null,
     @SerializedName("all_profiles")
@@ -123,9 +123,9 @@ data class FullSession(
     @SerializedName("profile")
     val profile: String? = null,
     @SerializedName("messages")
-    val messages: List<Message> = emptyList(),
+    val messages: List<Message>? = null,
     @SerializedName("context_messages")
-    val contextMessages: List<Message> = emptyList(),
+    val contextMessages: List<Message>? = null,
     @SerializedName("active_stream_id")
     val activeStreamId: String? = null,
     @SerializedName("pending_user_message")

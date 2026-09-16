@@ -3,9 +3,8 @@
 
 package com.hermes.android.viewmodel
 
-import android.app.Application
 import android.util.Log
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hermes.android.model.Message
 import com.hermes.android.model.FullSession
@@ -33,10 +32,9 @@ import com.hermes.android.repository.ChatStartState
  * ViewModel for managing chat operations
  */
 class ChatViewModel(
-    application: Application,
     private val api: HermesApi,
     private val sseClient: SseClient
-) : AndroidViewModel(application) {
+) : ViewModel() {
     companion object {
         private const val TAG = "ChatViewModel"
     }
@@ -99,7 +97,7 @@ class ChatViewModel(
             chatRepository.currentSessionState.collect { session ->
                 _currentSessionState.value = session
                 if (session != null) {
-                    _messagesState.value = session.messages
+                    _messagesState.value = session.messages ?: emptyList()
                 }
             }
         }
@@ -120,7 +118,7 @@ class ChatViewModel(
 
                 result.onSuccess { session ->
                     _currentSessionState.value = session
-                    _messagesState.value = session.messages
+                    _messagesState.value = session.messages ?: emptyList()
                 }.onFailure { e ->
                     _errorState.value = e.message ?: "Failed to load session"
                 }
@@ -232,7 +230,7 @@ class ChatViewModel(
     fun setCurrentSession(session: FullSession) {
         currentSessionId = session.sessionId
         _currentSessionState.value = session
-        _messagesState.value = session.messages
+        _messagesState.value = session.messages ?: emptyList()
     }
 
     /**
