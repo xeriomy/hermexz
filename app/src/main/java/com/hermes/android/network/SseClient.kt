@@ -143,7 +143,7 @@ class SseClient(
                     Log.d(TAG, "Connecting to SSE: $url")
 
                     val eventSource = EventSources.createFactory(okHttpClient).newEventSource(request, object : EventSourceListener() {
-                        override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String?) {
+                        override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                             try {
                                 lastEventId = id
                                 val sseEvent = SseEvent(

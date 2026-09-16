@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.hermes.android.repository.ChatStartState
 
 /**
  * ViewModel for managing chat operations
@@ -290,14 +291,4 @@ class ChatViewModel(
     fun getRepository(): ChatRepository {
         return chatRepository
     }
-}
-
-/**
- * Chat start state for UI
- */
-sealed class ChatStartState {
-    object Idle : ChatStartState()
-    object Loading : ChatStartState()
-    data class Success(val response: com.hermes.android.model.ChatStartResponse) : ChatStartState()
-    data class Error(val message: String) : ChatStartState()
 }
