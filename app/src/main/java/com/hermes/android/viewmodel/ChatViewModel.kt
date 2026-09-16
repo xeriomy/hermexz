@@ -63,6 +63,10 @@ class ChatViewModel(
     val streamEvents: StateFlow<SseEvent?> = _streamEvents.asStateFlow()
 
     private var currentSessionId: String? = null
+    private var currentStreamId: String? = null
+    private var streamingMessageBuffer: StringBuilder = StringBuilder()
+    private var currentMessageId: String? = null
+    private var currentMessageSeq: Int = 0
 
     init {
         viewModelScope.launch {
@@ -160,6 +164,19 @@ class ChatViewModel(
 
                 result.onSuccess { response ->
                     Log.d(TAG, "Chat started, streamId: ${response.streamId}")
+                    // Add user's message to the list immediately
+                    val userMessage = Message(
+                        role = "user",
+                        content = message,
+                        messageId = response.messageId,
+                        streamId = response.streamId,
+                        seq = response.seq
+                    )
+                    addMessage(userMessage)
+                    currentStreamId = response.streamId
+                    currentMessageId = response.messageId
+                    currentMessageSeq = response.seq
+                    streamingMessageBuffer.clear()
                     _chatState.value = ChatState.STREAMING
                     startStreaming()
                 }.onFailure { e ->
@@ -208,6 +225,17 @@ class ChatViewModel(
                 }
 
                 result.onSuccess {
+                    if (streamingMessageBuffer.isNotEmpty()) {
+                        val assistantMessage = Message(
+                            role = "assistant",
+                            content = streamingMessageBuffer.toString(),
+                            messageId = currentMessageId,
+                            streamId = currentStreamId,
+                            seq = currentMessageSeq
+                        )
+                        addMessage(assistantMessage)
+                        streamingMessageBuffer.clear()
+                    }
                     _chatState.value = ChatState.IDLE
                     _streamingMessageState.value = null
                 }.onFailure { e ->
@@ -226,6 +254,10 @@ class ChatViewModel(
     fun clearCurrentSession() {
         chatRepository.clearCurrentSession()
         currentSessionId = null
+        currentStreamId = null
+        currentMessageId = null
+        currentMessageSeq = 0
+        streamingMessageBuffer.clear()
         _currentSessionState.value = null
         _messagesState.value = emptyList()
         _streamingMessageState.value = null
@@ -261,22 +293,68 @@ class ChatViewModel(
             SseEventType.MESSAGE -> {
                 val messageEvent = Gson().fromJson(event.data, StreamMessageEvent::class.java)
                 val text = messageEvent?.text ?: ""
-                Log.d(TAG, "MESSAGE event: text='${text.take(50)}', done=${messageEvent?.done}, seq=${messageEvent?.seq}")
+                Log.d(TAG, "MESSAGE event: text='${text.take(50)}', done=${messageEvent?.done}, seq=${messageEvent?.seq}, message_id=${messageEvent?.messageId}")
+                
+                // Buffer streaming text
                 if (messageEvent?.done == true) {
+                    // Stream complete - add assistant message to list
+                    val assistantMessage = Message(
+                        role = "assistant",
+                        content = streamingMessageBuffer.toString(),
+                        messageId = messageEvent.messageId ?: currentMessageId,
+                        streamId = currentStreamId,
+                        seq = messageEvent.seq ?: currentMessageSeq
+                    )
+                    addMessage(assistantMessage)
+                    streamingMessageBuffer.clear()
                     _streamingMessageState.value = null
                     _chatState.value = ChatState.IDLE
                 } else {
-                    _streamingMessageState.value = text
+                    // Accumulate streaming text
+                    if (streamingMessageBuffer.isEmpty()) {
+                        streamingMessageBuffer.append(text)
+                    } else if (text.length > streamingMessageBuffer.length) {
+                        // Only append if text is growing (not resetting)
+                        streamingMessageBuffer.append(text.substring(streamingMessageBuffer.length))
+                    } else {
+                        // Text was reset, start fresh
+                        streamingMessageBuffer = StringBuilder(text)
+                    }
+                    _streamingMessageState.value = streamingMessageBuffer.toString()
                     _chatState.value = ChatState.STREAMING
                 }
             }
             SseEventType.DONE -> {
                 Log.d(TAG, "DONE event received")
+                // Finalize streaming - ensure message is added
+                if (streamingMessageBuffer.isNotEmpty()) {
+                    val assistantMessage = Message(
+                        role = "assistant",
+                        content = streamingMessageBuffer.toString(),
+                        messageId = currentMessageId,
+                        streamId = currentStreamId,
+                        seq = currentMessageSeq
+                    )
+                    addMessage(assistantMessage)
+                    streamingMessageBuffer.clear()
+                }
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
             SseEventType.STREAM_END -> {
                 Log.d(TAG, "STREAM_END event received")
+                // Finalize streaming - ensure message is added
+                if (streamingMessageBuffer.isNotEmpty()) {
+                    val assistantMessage = Message(
+                        role = "assistant",
+                        content = streamingMessageBuffer.toString(),
+                        messageId = currentMessageId,
+                        streamId = currentStreamId,
+                        seq = currentMessageSeq
+                    )
+                    addMessage(assistantMessage)
+                    streamingMessageBuffer.clear()
+                }
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
