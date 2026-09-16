@@ -101,22 +101,51 @@ class ChatRepository(
 
     /**
      * Start listening to chat stream
+     * Returns Flow of model SseEvent objects
      */
-    fun startStreaming(): Flow<StreamEvent> {
+    fun startStreaming(): Flow<SseEvent> {
         val sessionId = currentSessionId ?: throw IllegalStateException("No session ID set")
         val streamId = currentStreamId ?: throw IllegalStateException("No stream ID set")
 
         return sseClient.chatStream(streamId)
             .filter { it.type != SseEventType.HEARTBEAT }
-            .map { event ->
-                parseStreamEvent(event)
+    }
+
+    /**
+     * Parse a stream SseEvent into typed model events
+     */
+    fun parseStreamEvent(event: SseEvent): Any? {
+        return try {
+            when (event.type) {
+                SseEventType.MESSAGE -> {
+                    Gson().fromJson(event.data, StreamMessageEvent::class.java)
+                }
+                SseEventType.TOOL_CALL -> {
+                    Gson().fromJson(event.data, ToolCallEvent::class.java)
+                }
+                SseEventType.TOOL_RESULT -> {
+                    Gson().fromJson(event.data, ToolResultEvent::class.java)
+                }
+                SseEventType.APPROVAL -> {
+                    Gson().fromJson(event.data, ApprovalEvent::class.java)
+                }
+                SseEventType.DONE -> {
+                    Gson().fromJson(event.data, DoneEvent::class.java)
+                }
+                SseEventType.STREAM_END -> {
+                    Gson().fromJson(event.data, StreamEndEvent::class.java)
+                }
+                SseEventType.ERROR -> {
+                    Gson().fromJson(event.data, ErrorEvent::class.java)
+                }
+                else -> {
+                    null
+                }
             }
-            .catch { e ->
-                Log.e(TAG, "Error in stream", e)
-                emit(StreamEvent.ErrorEvent(
-                    ErrorEvent(type = "error", error = e.message, streamId = currentStreamId)
-                ))
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing stream event", e)
+            null
+        }
     }
 
     /**
@@ -225,70 +254,6 @@ class ChatRepository(
         streamingScope.cancel()
         clearCurrentSession()
     }
-
-    private fun parseStreamEvent(event: SseEvent): StreamEvent {
-        return try {
-            when (event.type) {
-                SseEventType.MESSAGE -> {
-                    val messageEvent = Gson().fromJson(event.data, StreamMessageEvent::class.java)
-                    StreamEvent.MessageEvent(messageEvent)
-                }
-                SseEventType.TOOL_CALL -> {
-                    val toolCallEvent = Gson().fromJson(event.data, ToolCallEvent::class.java)
-                    StreamEvent.ToolCallEvent(toolCallEvent)
-                }
-                SseEventType.TOOL_RESULT -> {
-                    val toolResultEvent = Gson().fromJson(event.data, ToolResultEvent::class.java)
-                    StreamEvent.ToolResultEvent(toolResultEvent)
-                }
-                SseEventType.APPROVAL -> {
-                    val approvalEvent = Gson().fromJson(event.data, ApprovalEvent::class.java)
-                    StreamEvent.ApprovalEvent(approvalEvent)
-                }
-                SseEventType.DONE -> {
-                    val doneEvent = Gson().fromJson(event.data, DoneEvent::class.java)
-                    StreamEvent.DoneEvent(doneEvent)
-                }
-                SseEventType.STREAM_END -> {
-                    val streamEndEvent = Gson().fromJson(event.data, StreamEndEvent::class.java)
-                    StreamEvent.StreamEndEvent(streamEndEvent)
-                }
-                SseEventType.ERROR -> {
-                    val errorEvent = Gson().fromJson(event.data, ErrorEvent::class.java)
-                    StreamEvent.ErrorEvent(errorEvent)
-                }
-                SseEventType.INITIAL -> {
-                    StreamEvent.InitialEvent
-                }
-                SseEventType.SERVER_TURN_STARTED -> {
-                    StreamEvent.ServerTurnStartedEvent
-                }
-                else -> {
-                    StreamEvent.UnknownEvent(event.type, event.data)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing stream event", e)
-            StreamEvent.ParseErrorEvent(event.type, event.data, e.message)
-        }
-    }
-}
-
-/**
- * Stream events
- */
-sealed class StreamEvent {
-    data class MessageEvent(val data: StreamMessageEvent) : StreamEvent()
-    data class ToolCallEvent(val data: ToolCallEvent) : StreamEvent()
-    data class ToolResultEvent(val data: ToolResultEvent) : StreamEvent()
-    data class ApprovalEvent(val data: ApprovalEvent) : StreamEvent()
-    data class DoneEvent(val data: DoneEvent) : StreamEvent()
-    data class StreamEndEvent(val data: StreamEndEvent) : StreamEvent()
-    data class ErrorEvent(val data: ErrorEvent) : StreamEvent()
-    object InitialEvent : StreamEvent()
-    object ServerTurnStartedEvent : StreamEvent()
-    data class UnknownEvent(val type: String, val data: String?) : StreamEvent()
-    data class ParseErrorEvent(val type: String, val data: String?, val error: String?) : StreamEvent()
 }
 
 /**

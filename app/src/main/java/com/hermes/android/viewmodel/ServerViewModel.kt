@@ -73,7 +73,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             _errorState.value = null
 
             try {
-                api = ApiClient.createHermesApi(application, url)
+                api = ApiClient.createHermesApi(getApplication(), url)
                 authRepository = AuthRepository(api!!)
 
                 val result = withContext(Dispatchers.IO) {
@@ -92,7 +92,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
                         )
                         _connectionState.value = ConnectionState.Connected(url)
 
-                        saveServerUrl(url)
+                        saveServerUrl(url, getApplication())
                         checkAuthStatus()
                     } else {
                         serverConfig = ServerConfig(
@@ -155,13 +155,6 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Get Application context
-     */
-    fun getApplication(): Application {
-        return super.getApplication()
-    }
-
-    /**
      * Get API instance
      */
     fun getApi(): HermesApi? {
@@ -192,8 +185,8 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Save server URL to preferences
      */
-    private fun saveServerUrl(url: String) {
-        val prefs = application.getSharedPreferences("HermesPrefs", 0)
+    private fun saveServerUrl(url: String, app: Application) {
+        val prefs = app.getSharedPreferences("HermesPrefs", 0)
         prefs.edit().putString("server_url", url).apply()
     }
 
@@ -201,7 +194,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
      * Load saved server URL from preferences
      */
     private fun loadSavedServerUrl() {
-        val prefs = application.getSharedPreferences("HermesPrefs", 0)
+        val prefs = getApplication<Application>().getSharedPreferences("HermesPrefs", 0)
         val savedUrl = prefs.getString("server_url", "")
         if (!savedUrl.isNullOrEmpty()) {
             _serverUrl.value = savedUrl
