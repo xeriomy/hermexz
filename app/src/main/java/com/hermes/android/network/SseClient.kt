@@ -99,8 +99,10 @@ class SseClient(
         afterSeq: Int? = null
     ): String {
         val builder = StringBuilder("$baseUrl/api/chat/stream?stream_id=$streamId")
+
         afterEventId?.let { builder.append("&after_event_id=$it") }
         afterSeq?.let { builder.append("&after_seq=$it") }
+
         return builder.toString()
     }
 
@@ -109,7 +111,9 @@ class SseClient(
         knownCount: Int? = null
     ): String {
         val builder = StringBuilder("$baseUrl/api/session/stream?session_id=$sessionId")
+
         knownCount?.let { builder.append("&known_count=$it") }
+
         return builder.toString()
     }
 
@@ -141,9 +145,12 @@ class SseClient(
                     sse.events().collect { event ->
                         try {
                             lastEventId = event.id
+
                             val sseEvent = parseSseEvent(event)
                             sseEvent?.let { handler.emit(it) }
+
                             reconnectCount = 0
+
                         } catch (e: Exception) {
                             Log.e(TAG, "Error parsing SSE event", e)
                         }

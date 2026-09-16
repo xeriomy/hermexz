@@ -10,10 +10,16 @@ import androidx.lifecycle.viewModelScope
 import com.hermes.android.model.Message
 import com.hermes.android.model.FullSession
 import com.hermes.android.model.ChatState
+import com.hermes.android.model.SseEvent
+import com.hermes.android.model.StreamMessageEvent
+import com.hermes.android.model.DoneEvent
+import com.hermes.android.model.StreamEndEvent
+import com.hermes.android.model.ErrorEvent
 import com.hermes.android.network.HermesApi
 import com.hermes.android.network.SseClient
+import com.hermes.android.network.SseEventType
 import com.hermes.android.repository.ChatRepository
-import com.hermes.android.repository.StreamEvent
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,8 +60,8 @@ class ChatViewModel(
     private val _errorState = MutableStateFlow<String?>(null)
     val errorState: StateFlow<String?> = _errorState.asStateFlow()
 
-    private val _streamEvents = MutableStateFlow<StreamEvent?>(null)
-    val streamEvents: StateFlow<StreamEvent?> = _streamEvents.asStateFlow()
+    private val _streamEvents = MutableStateFlow<SseEvent?>(null)
+    val streamEvents: StateFlow<SseEvent?> = _streamEvents.asStateFlow()
 
     private var currentSessionId: String? = null
 
@@ -240,11 +246,12 @@ class ChatViewModel(
     /**
      * Handle stream events
      */
-    private fun handleStreamEvent(event: StreamEvent) {
-        when (event) {
-            is StreamEvent.MessageEvent -> {
-                val text = event.data.text ?: ""
-                if (event.data.done) {
+    private fun handleStreamEvent(event: SseEvent) {
+        when (event.type) {
+            SseEventType.MESSAGE -> {
+                val messageEvent = Gson().fromJson(event.data, StreamMessageEvent::class.java)
+                val text = messageEvent?.text ?: ""
+                if (messageEvent?.done == true) {
                     _streamingMessageState.value = null
                     _chatState.value = ChatState.IDLE
                 } else {
@@ -252,27 +259,27 @@ class ChatViewModel(
                     _chatState.value = ChatState.STREAMING
                 }
             }
-            is StreamEvent.DoneEvent -> {
+            SseEventType.DONE -> {
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
-            is StreamEvent.StreamEndEvent -> {
+            SseEventType.STREAM_END -> {
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
-            is StreamEvent.ErrorEvent -> {
+            SseEventType.ERROR -> {
+                val errorEvent = Gson().fromJson(event.data, ErrorEvent::class.java)
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.ERROR
-                _errorState.value = event.data.error ?: "Stream error"
+                _errorState.value = errorEvent?.error ?: "Stream error"
             }
-            is StreamEvent.ToolCallEvent -> {}
-            is StreamEvent.ToolResultEvent -> {}
-            is StreamEvent.ApprovalEvent -> {}
-            is StreamEvent.InitialEvent -> {}
-            is StreamEvent.ServerTurnStartedEvent -> {}
-            is StreamEvent.UnknownEvent -> {}
-            is StreamEvent.ParseErrorEvent -> {
-                _errorState.value = event.error ?: "Parse error"
+            SseEventType.TOOL_CALL -> {}
+            SseEventType.TOOL_RESULT -> {}
+            SseEventType.APPROVAL -> {}
+            SseEventType.INITIAL -> {}
+            SseEventType.SERVER_TURN_STARTED -> {}
+            else -> {
+                Log.d(TAG, "Unhandled event type: ${event.type}")
             }
         }
     }
