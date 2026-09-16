@@ -23,7 +23,9 @@ import kotlinx.coroutines.withContext
  * ViewModel for managing server connection
  */
 class ServerViewModel(application: Application) : AndroidViewModel(application) {
-    private const val TAG = "ServerViewModel"
+    companion object {
+        private const val TAG = "ServerViewModel"
+    }
 
     private val _serverUrl = MutableStateFlow("")
     val serverUrl: StateFlow<String> = _serverUrl.asStateFlow()
@@ -150,6 +152,13 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
                 Log.e(TAG, "Error checking auth status", e)
             }
         }
+    }
+
+    /**
+     * Get Application context
+     */
+    fun getApplication(): Application {
+        return super.getApplication()
     }
 
     /**

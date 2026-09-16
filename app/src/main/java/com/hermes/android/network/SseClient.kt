@@ -11,13 +11,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.sse.Event
 import okhttp3.sse.Sse
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -28,8 +27,10 @@ class SseClient(
     private val okHttpClient: OkHttpClient,
     private val baseUrl: String
 ) {
-    private const val TAG = "SseClient"
-    private const val RECONNECT_DELAY_MS = 5000L
+    companion object {
+        private const val TAG = "SseClient"
+        private const val RECONNECT_DELAY_MS = 5000L
+    }
 
     private val activeStreams = mutableMapOf<String, StreamHandler>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -170,7 +171,7 @@ class SseClient(
         }
     }
 
-    private fun parseSseEvent(event: okhttp3.sse.Sse.Event): SseEvent? {
+    private fun parseSseEvent(event: Event): SseEvent? {
         return try {
             SseEvent(
                 type = event.event ?: "",

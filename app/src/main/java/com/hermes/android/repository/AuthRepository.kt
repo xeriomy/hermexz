@@ -17,7 +17,9 @@ import kotlinx.coroutines.withContext
  * Repository for managing authentication
  */
 class AuthRepository(private val api: HermesApi) {
-    private const val TAG = "AuthRepository"
+    companion object {
+        private const val TAG = "AuthRepository"
+    }
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()

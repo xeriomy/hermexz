@@ -30,7 +30,9 @@ class ChatRepository(
     private val api: HermesApi,
     private val sseClient: SseClient
 ) {
-    private const val TAG = "ChatRepository"
+    companion object {
+        private const val TAG = "ChatRepository"
+    }
 
     private val _chatState = MutableStateFlow<ChatState>(ChatState.IDLE)
     val chatState: StateFlow<ChatState> = _chatState.asStateFlow()

@@ -8,6 +8,7 @@ import android.util.Log
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -100,7 +101,7 @@ object ApiClient {
      * Get current session cookie value
      */
     fun getSessionCookie(baseUrl: String): String? {
-        val host = HttpUrl.parse(baseUrl)?.host ?: return null
+        val host = baseUrl.toHttpUrlOrNull()?.host ?: return null
         val cookies = cookieStore[host] ?: return null
         return cookies.firstOrNull { it.name == SESSION_COOKIE_NAME }?.value
     }
@@ -109,14 +110,13 @@ object ApiClient {
      * Set session cookie manually
      */
     fun setSessionCookie(baseUrl: String, cookieValue: String) {
-        val host = HttpUrl.parse(baseUrl)?.host ?: return
+        val host = baseUrl.toHttpUrlOrNull()?.host ?: return
         val cookie = Cookie.Builder()
             .name(SESSION_COOKIE_NAME)
             .value(cookieValue)
             .domain(host)
             .path("/")
-            .httpOnly(true)
-            .secure(false)
+            .httpOnly()
             .build()
 
         cookieStore.getOrPut(host) { mutableListOf() }.apply {
@@ -129,7 +129,7 @@ object ApiClient {
      * Clear session cookie
      */
     fun clearSessionCookie(baseUrl: String) {
-        val host = HttpUrl.parse(baseUrl)?.host ?: return
+        val host = baseUrl.toHttpUrlOrNull()?.host ?: return
         cookieStore[host]?.removeAll { it.name == SESSION_COOKIE_NAME }
     }
 
@@ -137,7 +137,7 @@ object ApiClient {
      * Clear all cookies for a host
      */
     fun clearAllCookies(baseUrl: String) {
-        val host = HttpUrl.parse(baseUrl)?.host ?: return
+        val host = baseUrl.toHttpUrlOrNull()?.host ?: return
         cookieStore.remove(host)
     }
 

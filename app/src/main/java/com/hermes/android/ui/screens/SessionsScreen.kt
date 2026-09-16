@@ -27,7 +27,7 @@ import com.hermes.android.model.Session
 import com.hermes.android.network.HermesApi
 import com.hermes.android.repository.SessionCreationState
 import com.hermes.android.ui.components.SessionCard
-import com.hermes.android.ui.viewmodel.ServerViewModel
+import com.hermes.android.viewmodel.ServerViewModel
 import com.hermes.android.viewmodel.SessionListState
 import com.hermes.android.viewmodel.SessionViewModel
 import com.hermes.android.viewmodel.SessionViewModelFactory
@@ -221,8 +221,8 @@ fun SessionsScreen(
 
     LaunchedEffect(sessionCreationState) {
         when (sessionCreationState) {
-            is com.hermes.android.viewmodel.SessionCreationState.Success -> {
-                val newSession = (sessionCreationState as com.hermes.android.viewmodel.SessionCreationState.Success)
+            is com.hermes.android.repository.SessionCreationState.Success -> {
+                val newSession = (sessionCreationState as com.hermes.android.repository.SessionCreationState.Success)
                 onNewSession(newSession.response.sessionId)
             }
             else -> {}
