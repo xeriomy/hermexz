@@ -146,6 +146,7 @@ class SseClient(
                         override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                             try {
                                 lastEventId = id
+                                Log.d(TAG, "SSE onEvent: type=$type, id=$id, data=${data.take(200)}")
                                 val sseEvent = SseEvent(
                                     type = type ?: "",
                                     data = data,

@@ -97,6 +97,7 @@ class ChatViewModel(
             chatRepository.currentSessionState.collect { session ->
                 _currentSessionState.value = session
                 if (session != null) {
+                    Log.d(TAG, "currentSessionState updated: ${session.sessionId}, messages: ${session.messages?.size ?: 0}")
                     _messagesState.value = session.messages ?: emptyList()
                 }
             }
@@ -118,8 +119,13 @@ class ChatViewModel(
 
                 result.onSuccess { session ->
                     _currentSessionState.value = session
+                    Log.d(TAG, "Session loaded: ${session.sessionId}, messages count: ${session.messages?.size ?: 0}")
+                    if (session.messages != null) {
+                        Log.d(TAG, "Messages: ${session.messages?.joinToString { "[${it.role}, ${it.content.take(50)}]" }}")
+                    }
                     _messagesState.value = session.messages ?: emptyList()
                 }.onFailure { e ->
+                    Log.e(TAG, "Failed to load session: ${e.message}", e)
                     _errorState.value = e.message ?: "Failed to load session"
                 }
             } catch (e: Exception) {
@@ -147,14 +153,17 @@ class ChatViewModel(
             }
 
             try {
+                Log.d(TAG, "Sending message: $message, session: $sessionId")
                 val result = withContext(Dispatchers.IO) {
                     chatRepository.startChat(sessionId, message, profile, model)
                 }
 
                 result.onSuccess { response ->
+                    Log.d(TAG, "Chat started, streamId: ${response.streamId}")
                     _chatState.value = ChatState.STREAMING
                     startStreaming()
                 }.onFailure { e ->
+                    Log.e(TAG, "Failed to send message: ${e.message}", e)
                     _errorState.value = e.message ?: "Failed to send message"
                     _chatState.value = ChatState.ERROR
                 }
@@ -230,6 +239,7 @@ class ChatViewModel(
     fun setCurrentSession(session: FullSession) {
         currentSessionId = session.sessionId
         _currentSessionState.value = session
+        Log.d(TAG, "setCurrentSession: ${session.sessionId}, messages: ${session.messages?.size ?: 0}")
         _messagesState.value = session.messages ?: emptyList()
     }
 
@@ -246,10 +256,12 @@ class ChatViewModel(
      * Handle stream events
      */
     private fun handleStreamEvent(event: SseEvent) {
+        Log.d(TAG, "SSE event: type=${event.type}, id=${event.id}, data=${event.data?.take(200)}")
         when (event.type) {
             SseEventType.MESSAGE -> {
                 val messageEvent = Gson().fromJson(event.data, StreamMessageEvent::class.java)
                 val text = messageEvent?.text ?: ""
+                Log.d(TAG, "MESSAGE event: text='${text.take(50)}', done=${messageEvent?.done}, seq=${messageEvent?.seq}")
                 if (messageEvent?.done == true) {
                     _streamingMessageState.value = null
                     _chatState.value = ChatState.IDLE
@@ -259,24 +271,37 @@ class ChatViewModel(
                 }
             }
             SseEventType.DONE -> {
+                Log.d(TAG, "DONE event received")
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
             SseEventType.STREAM_END -> {
+                Log.d(TAG, "STREAM_END event received")
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.IDLE
             }
             SseEventType.ERROR -> {
                 val errorEvent = Gson().fromJson(event.data, ErrorEvent::class.java)
+                Log.e(TAG, "ERROR event: ${errorEvent?.error}")
                 _streamingMessageState.value = null
                 _chatState.value = ChatState.ERROR
                 _errorState.value = errorEvent?.error ?: "Stream error"
             }
-            SseEventType.TOOL_CALL -> {}
-            SseEventType.TOOL_RESULT -> {}
-            SseEventType.APPROVAL -> {}
-            SseEventType.INITIAL -> {}
-            SseEventType.SERVER_TURN_STARTED -> {}
+            SseEventType.TOOL_CALL -> {
+                Log.d(TAG, "TOOL_CALL event: ${event.data?.take(100)}")
+            }
+            SseEventType.TOOL_RESULT -> {
+                Log.d(TAG, "TOOL_RESULT event: ${event.data?.take(100)}")
+            }
+            SseEventType.APPROVAL -> {
+                Log.d(TAG, "APPROVAL event: ${event.data?.take(100)}")
+            }
+            SseEventType.INITIAL -> {
+                Log.d(TAG, "INITIAL event: ${event.data?.take(100)}")
+            }
+            SseEventType.SERVER_TURN_STARTED -> {
+                Log.d(TAG, "SERVER_TURN_STARTED event")
+            }
             else -> {
                 Log.d(TAG, "Unhandled event type: ${event.type}")
             }
