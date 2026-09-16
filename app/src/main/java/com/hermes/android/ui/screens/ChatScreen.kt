@@ -96,6 +96,7 @@ fun ChatScreen(
 
         val listState = rememberLazyListState()
 
+        @OptIn(ExperimentalFoundationApi::class)
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -104,15 +105,13 @@ fun ChatScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-            item {
             items(messages) { message ->
                 MessageBubble(message = message)
             }
 
             streamingMessage?.let { text ->
                 if (text.isNotBlank()) {
-                        item {
+                    item {
                         StreamingMessage(text = text)
                     }
                 }

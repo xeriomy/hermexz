@@ -16,6 +16,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
@@ -157,12 +158,12 @@ class SseClient(
                             }
                         }
 
-                        override fun onFailure(eventSource: EventSource, t: Throwable?, responseCode: Int) {
+                        override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                             Log.e(TAG, "SSE connection error: ${t?.message}")
                             eventSource.cancel()
                         }
 
-                        override fun onOpen(eventSource: EventSource, response: okhttp3.Response) {
+                        override fun onOpen(eventSource: EventSource, response: Response) {
                             Log.d(TAG, "SSE connection opened")
                         }
 
