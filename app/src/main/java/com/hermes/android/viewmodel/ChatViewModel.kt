@@ -298,14 +298,17 @@ class ChatViewModel(
                 // Buffer streaming text
                 if (messageEvent?.done == true) {
                     // Stream complete - add assistant message to list
-                    val assistantMessage = Message(
-                        role = "assistant",
-                        content = streamingMessageBuffer.toString(),
-                        messageId = messageEvent.messageId ?: currentMessageId,
-                        streamId = currentStreamId,
-                        seq = messageEvent.seq ?: currentMessageSeq
-                    )
-                    addMessage(assistantMessage)
+                    val finalText = if (text.isNotBlank()) text else streamingMessageBuffer.toString()
+                    if (finalText.isNotBlank()) {
+                        val assistantMessage = Message(
+                            role = "assistant",
+                            content = finalText,
+                            messageId = messageEvent.messageId ?: currentMessageId,
+                            streamId = currentStreamId,
+                            seq = messageEvent.seq ?: currentMessageSeq
+                        )
+                        addMessage(assistantMessage)
+                    }
                     streamingMessageBuffer.clear()
                     _streamingMessageState.value = null
                     _chatState.value = ChatState.IDLE
